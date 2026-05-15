@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insomnia: Medication Management</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #0a0e1a;
+    --deep: #111827;
+    --card: #161d2e;
+    --border: #1e2a3f;
+    --moon: #c4b5fd;
+    --star: #7dd3fc;
+    --warm: #fbbf24;
+    --sage: #6ee7b7;
+    --rose: #fca5a5;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --dim: #334155;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--night);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Starfield */
+  .stars {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle var(--d) ease-in-out infinite alternate;
+  }
+  @keyframes twinkle {
+    from { opacity: 0.1; transform: scale(0.8); }
+    to { opacity: 0.7; transform: scale(1.2); }
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 3rem 0 2.5rem;
+    animation: fadeDown 0.8s ease both;
+  }
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .moon-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 0 20px #c4b5fd88);
+    animation: float 4s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 6vw, 3.2rem);
+    color: #fff;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  h1 em {
+    color: var(--moon);
+    font-style: italic;
+  }
+
+  .byline {
+    margin-top: 0.75rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* Section label */
+  .section-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 2.5rem 0 1rem;
+    padding-left: 0.25rem;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  /* Drug class grid */
+  .drug-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .drug-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    animation: fadeIn 0.5s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+  .drug-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.7;
+  }
+  .drug-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px var(--accent)22;
+  }
+  .drug-card.expanded {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent)44, 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .card-class {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .card-abbr {
+    font-size: 0.6rem;
+    color: var(--muted);
+    background: var(--border);
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+
+  .chevron {
+    font-size: 0.7rem;
+    color: var(--muted);
+    transition: transform 0.3s ease;
+  }
+  .drug-card.expanded .chevron { transform: rotate(180deg); }
+
+  .drug-list {
+    display: none;
+    margin-top: 1rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+  .drug-card.expanded .drug-list { display: block; }
+
+  .drug-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .drug-item:last-child { border-bottom: none; }
+
+  .drug-name {
+    font-size: 0.8rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .drug-brand {
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  .drug-dose {
+    font-size: 0.72rem;
+    color: var(--accent);
+    opacity: 0.85;
+    margin-top: 2px;
+  }
+  .drug-note {
+    font-size: 0.65rem;
+    color: var(--warm);
+    margin-top: 3px;
+    font-style: italic;
+  }
+
+  /* Chooser tool */
+  .chooser {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  .chooser-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.2rem;
+    color: var(--moon);
+    margin-bottom: 1.25rem;
+  }
+
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .filter-btn {
+    background: var(--deep);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.05em;
+  }
+  .filter-btn:hover {
+    border-color: var(--moon);
+    color: var(--moon);
+  }
+  .filter-btn.active {
+    background: var(--moon);
+    border-color: var(--moon);
+    color: var(--night);
+    font-weight: 600;
+  }
+
+  .result-box {
+    background: var(--deep);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    min-height: 100px;
+  }
+
+  .result-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .result-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .result-tag {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.72rem;
+    color: var(--text);
+    animation: popIn 0.3s ease both;
+  }
+  .result-tag.avoid {
+    border-color: #ef444444;
+    color: var(--rose);
+    background: #ef444408;
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .avoid-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--rose);
+    margin: 0.75rem 0 0.4rem;
+    opacity: 0.7;
+  }
+
+  .empty-state {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-style: italic;
+    text-align: center;
+    padding: 1.5rem 0;
+  }
+
+  /* Key principles */
+  .principles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .principle-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    animation: fadeIn 0.5s ease both;
+  }
+  .principle-icon { font-size: 1.3rem; margin-bottom: 0.4rem; }
+  .principle-text {
+    font-size: 0.72rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-top: 3rem;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="wrapper">
+  <header>
+    <span class="moon-icon">🌙</span>
+    <h1>Insomnia<br><em>Medication Management</em></h1>
+    <p class="byline">Carlat &amp; Puzantian · Nov 2025 · Clinical Reference</p>
+  </header>
+
+  <!-- Drug Classes -->
+  <p class="section-label">Medication Classes</p>
+  <div class="drug-grid" id="drugGrid"></div>
+
+  <!-- Clinical Chooser -->
+  <p class="section-label">Clinical Decision Tool</p>
+  <div class="chooser">
+    <p class="chooser-title">Choose by Patient Profile</p>
+    <div class="filter-row" id="filterRow"></div>
+    <div class="result-box" id="resultBox">
+      <p class="empty-state">Select a clinical context above</p>
+    </div>
+  </div>
+
+  <!-- Key Principles -->
+  <p class="section-label">Key Principles</p>
+  <div class="principles">
+    <div class="principle-card">
+      <div class="principle-icon">🎯</div>
+      <div class="principle-text">Treat the underlying psychiatric condition first wherever possible</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-icon">🧬</div>
+      <div class="principle-text">Individualise by comorbidities, age, and type of sleep problem</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-icon">⚠️</div>
+      <div class="principle-text">Avoid antihistamines in elderly — anticholinergic burden</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-icon">💊</div>
+      <div class="principle-text">DORAs are effective but often more expensive than alternatives</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-icon">🚫</div>
+      <div class="principle-text">Avoid BZDs and BZRAs in patients with substance use disorders</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-icon">🌗</div>
+      <div class="principle-text">Middle-of-night awakenings: zaleplon or zolpidem SL are specific options</div>
+    </div>
+  </div>
+
+  <footer>Source: Carlat Publishing · thecarlatreport.com · For clinical use only</footer>
+</div>
+
+<script>
+// Starfield
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 120; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const size = Math.random() * 2 + 0.5;
+  s.style.cssText = `width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${(Math.random()*3+2).toFixed(1)}s;animation-delay:${(Math.random()*4).toFixed(1)}s`;
+  starsEl.appendChild(s);
+}
+
+// Data
+const drugClasses = [
+  {
+    name: 'Benzodiazepine Receptor Agonists',
+    abbr: 'BZRAs',
+    accent: '#7dd3fc',
+    drugs: [
+      { name: 'Eszopiclone', brand: 'Lunesta', dose: '1–3 mg' },
+      { name: 'Zaleplon', brand: 'Sonata', dose: '5–20 mg', note: 'Also for middle-of-night awakenings' },
+      { name: 'Zolpidem', brand: 'Ambien', dose: '5–10 mg (men), 5 mg (women)' },
+      { name: 'Zolpidem CR', brand: 'Ambien CR', dose: '6.25–12.5 mg' },
+      { name: 'Zolpidem SL', brand: 'Intermezzo', dose: '1.75–3.5 mg', note: 'Middle-of-night awakenings only' },
+    ]
+  },
+  {
+    name: 'Melatonin Receptor Agonists',
+    abbr: 'MRAs',
+    accent: '#c4b5fd',
+    drugs: [
+      { name: 'Ramelteon', brand: 'Rozerem', dose: '8 mg' },
+      { name: 'Melatonin (OTC)', brand: '', dose: '1–5 mg' },
+    ]
+  },
+  {
+    name: 'Dual Orexin Receptor Antagonists',
+    abbr: 'DORAs',
+    accent: '#6ee7b7',
+    drugs: [
+      { name: 'Daridorexant', brand: 'Quviviq', dose: '25–50 mg' },
+      { name: 'Lemborexant', brand: 'Dayvigo', dose: '5–10 mg' },
+      { name: 'Suvorexant', brand: 'Belsomra', dose: '5–20 mg' },
+    ]
+  },
+  {
+    name: 'Antidepressants',
+    abbr: 'ADs',
+    accent: '#fbbf24',
+    drugs: [
+      { name: 'Doxepin', brand: 'Silenor', dose: '3–6 mg' },
+      { name: 'Trazodone', brand: 'Desyrel', dose: '25–100 mg', note: 'Off-label' },
+      { name: 'Mirtazapine', brand: 'Remeron', dose: '7.5–15 mg' },
+    ]
+  },
+  {
+    name: 'Benzodiazepines',
+    abbr: 'BZDs',
+    accent: '#fca5a5',
+    drugs: [
+      { name: 'Temazepam', brand: 'Restoril', dose: '7.5–15 mg' },
+      { name: 'Lorazepam', brand: 'Ativan', dose: '0.5–1 mg' },
+      { name: 'Clonazepam', brand: 'Klonopin', dose: '0.5–1 mg' },
+    ]
+  },
+  {
+    name: 'Antihistamines',
+    abbr: 'AHs',
+    accent: '#fdba74',
+    drugs: [
+      { name: 'Diphenhydramine', brand: 'Benadryl', dose: '25–50 mg' },
+      { name: 'Doxylamine', brand: 'Unisom', dose: '12.5–25 mg' },
+    ]
+  },
+  {
+    name: 'Antipsychotics',
+    abbr: 'APs',
+    accent: '#a78bfa',
+    drugs: [
+      { name: 'Quetiapine', brand: '', dose: '25–100 mg', note: 'Off-label' },
+    ]
+  },
+  {
+    name: 'Alpha Agonists',
+    abbr: 'αAs',
+    accent: '#67e8f9',
+    drugs: [
+      { name: 'Clonidine', brand: '', dose: '0.1–0.3 mg' },
+      { name: 'Prazosin', brand: '', dose: '1–5 mg' },
+    ]
+  },
+];
+
+const profiles = {
+  'Sleep-Onset': {
+    use: ['Doxepin', 'Ramelteon', 'Trazodone', 'Diphenhydramine', 'Doxylamine', 'Melatonin (OTC)', 'Eszopiclone', 'Zolpidem', 'Daridorexant', 'Lemborexant', 'Suvorexant'],
+    avoid: []
+  },
+  'Middle-of-Night': {
+    use: ['Zolpidem SL', 'Zaleplon', 'Doxepin'],
+    avoid: []
+  },
+  'Elderly': {
+    use: ['Ramelteon', 'Melatonin (OTC)', 'Trazodone', 'Daridorexant', 'Lemborexant', 'Suvorexant'],
+    avoid: ['Diphenhydramine (anticholinergic effects)', 'Doxylamine (anticholinergic effects)']
+  },
+  'Substance Use Disorder': {
+    use: ['Ramelteon', 'Trazodone', 'Mirtazapine', 'Doxepin', 'Diphenhydramine', 'Daridorexant', 'Lemborexant', 'Suvorexant'],
+    avoid: ['Benzodiazepines (BZDs)', 'BZRAs — avoid (misuse risk)']
+  },
+  'Depression': {
+    use: ['Trazodone', 'Ramelteon', 'Diphenhydramine', 'Doxylamine'],
+    avoid: ['DORAs (possible suicidal ideation risk)', 'Doxepin (overdose risk — caution)', 'BZRAs (caution)', 'Benzodiazepines (caution)']
+  },
+  'Schizophrenia / Mood': {
+    use: ['Quetiapine', 'Trazodone', 'Diphenhydramine', 'Ramelteon', 'Melatonin (OTC)'],
+    avoid: []
+  },
+  'Anxiety Disorder': {
+    use: ['Lorazepam', 'Clonazepam', 'Temazepam', 'Trazodone', 'Mirtazapine', 'Doxepin'],
+    avoid: []
+  },
+  'Respiratory Issues': {
+    use: ['Ramelteon', 'Trazodone', 'Doxepin', 'Melatonin (OTC)'],
+    avoid: ['Benzodiazepines (respiratory depression)']
+  },
+  'Pregnant': {
+    use: ['Diphenhydramine'],
+    avoid: ['Most other agents — insufficient safety data']
+  },
+};
+
+// Render drug cards
+const grid = document.getElementById('drugGrid');
+drugClasses.forEach((cls, i) => {
+  const card = document.createElement('div');
+  card.className = 'drug-card';
+  card.style.setProperty('--accent', cls.accent);
+  card.style.animationDelay = `${i * 0.07}s`;
+
+  card.innerHTML = `
+    <div class="card-header">
+      <span class="card-class">${cls.name}</span>
+      <div style="display:flex;align-items:center;gap:0.5rem">
+        <span class="card-abbr">${cls.abbr}</span>
+        <span class="chevron">▼</span>
+      </div>
+    </div>
+    <div class="drug-list">
+      ${cls.drugs.map(d => `
+        <div class="drug-item">
+          <span class="drug-name">${d.name}</span>
+          ${d.brand ? `<span class="drug-brand">${d.brand}</span>` : ''}
+          <span class="drug-dose">${d.dose}</span>
+          ${d.note ? `<span class="drug-note">↳ ${d.note}</span>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  card.addEventListener('click', () => {
+    card.classList.toggle('expanded');
+  });
+
+  grid.appendChild(card);
+});
+
+// Render filter buttons
+const filterRow = document.getElementById('filterRow');
+const resultBox = document.getElementById('resultBox');
+let active = null;
+
+Object.keys(profiles).forEach(key => {
+  const btn = document.createElement('button');
+  btn.className = 'filter-btn';
+  btn.textContent = key;
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    if (active === key) {
+      active = null;
+      resultBox.innerHTML = '<p class="empty-state">Select a clinical context above</p>';
+      return;
+    }
+    active = key;
+    btn.classList.add('active');
+    const profile = profiles[key];
+
+    let html = '';
+    if (profile.use.length) {
+      html += `<div class="result-label">✓ Preferred / Consider</div><div class="result-tags">`;
+      profile.use.forEach((d, i) => {
+        html += `<span class="result-tag" style="animation-delay:${i*0.05}s">${d}</span>`;
+      });
+      html += '</div>';
+    }
+    if (profile.avoid.length) {
+      html += `<div class="avoid-label">⚠ Avoid / Caution</div><div class="result-tags">`;
+      profile.avoid.forEach((d, i) => {
+        html += `<span class="result-tag avoid" style="animation-delay:${i*0.05}s">${d}</span>`;
+      });
+      html += '</div>';
+    }
+
+    resultBox.innerHTML = html;
+  });
+  filterRow.appendChild(btn);
+});
+</script>
+</body>
+</html>
